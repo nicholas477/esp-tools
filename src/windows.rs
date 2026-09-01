@@ -10,6 +10,8 @@ use tes3::esp::{Plugin, Static};
 use tes3::nif::TextureSource::External;
 use tes3::nif::{NiSourceTexture, NiStream};
 
+use crate::args::Commands::Package;
+
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum GuiAction {
     #[default]
@@ -151,21 +153,25 @@ fn collect_model_textures(
     Ok(models)
 }
 
-pub fn run(plugin_path: &Path) -> Result<GuiAction, Box<dyn std::error::Error>> {
-    nwg::init()?;
-    nwg::Font::set_global_family("Segoe UI")?;
+pub fn run(args: &crate::args::Args) -> Result<(), Box<dyn std::error::Error>> {
+    if let Package(args) = &args.command {
+        nwg::init()?;
+        nwg::Font::set_global_family("Segoe UI")?;
 
-    let app = EspTreeApp::build_ui(EspTreeApp {
-        initial_plugin: Some(plugin_path.to_path_buf()),
-        ..Default::default()
-    })?;
-    let mut package_tooltip = nwg::Tooltip::default();
-    nwg::Tooltip::builder()
-        .register(
-            &app.package_button,
-            "Create a ZIP containing this plugin, its models, and textures.",
-        )
-        .build(&mut package_tooltip)?;
-    nwg::dispatch_thread_events();
-    Ok(app.action.get())
+        let app = EspTreeApp::build_ui(EspTreeApp {
+            initial_plugin: Some(args.file.clone()),
+            ..Default::default()
+        })?;
+        let mut package_tooltip = nwg::Tooltip::default();
+        nwg::Tooltip::builder()
+            .register(
+                &app.package_button,
+                "Create a ZIP containing this plugin, its models, and textures.",
+            )
+            .build(&mut package_tooltip)?;
+        nwg::dispatch_thread_events();
+        //Ok(app.action.get())
+    }
+
+    Ok(())
 }
