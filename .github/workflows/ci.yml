@@ -45,7 +45,7 @@ jobs:
     name: Rust project - ${{ matrix.NAME }}
     runs-on: ${{ matrix.OS }}
     env:
-      NAME: esp-isolator
+      NAME: esp-tools
       TARGET: ${{ matrix.TARGET }}
       OS: ${{ matrix.OS }}
     strategy:
@@ -89,7 +89,7 @@ jobs:
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: esp-isolator-${{ matrix.NAME }}-${{ github.sha }}
+          name: esp-tools-${{ matrix.NAME }}-${{ github.sha }}
           path: |
             ./artifacts
 
@@ -107,7 +107,7 @@ jobs:
       - name: Download Windows executable
         uses: actions/download-artifact@v8
         with:
-          name: esp-isolator-windows-${{ github.sha }}
+          name: esp-tools-windows-${{ github.sha }}
           path: ./artifacts
 
       - name: Install cargo-wix
@@ -119,7 +119,7 @@ jobs:
       - name: Archive MSI
         uses: actions/upload-artifact@v4
         with:
-          name: esp-isolator-windows-msi-${{ github.sha }}
+          name: esp-tools-windows-msi-${{ github.sha }}
           path: ./target/wix/*.msi
 
   test:
@@ -127,7 +127,7 @@ jobs:
     needs: build
     runs-on: ${{ matrix.OS }}
     env:
-      NAME: esp-isolator
+      NAME: esp-tools
       TARGET: ${{ matrix.TARGET }}
       OS: ${{ matrix.OS }}
     strategy:
@@ -168,7 +168,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
-          name: esp-isolator-${{ matrix.NAME }}-${{ github.sha }}
+          name: esp-tools-${{ matrix.NAME }}-${{ github.sha }}
           path: ./artifacts
       - name: List
         run: find ./artifacts
@@ -177,7 +177,7 @@ jobs:
         run: |
           mkdir -p release
           cd artifacts
-          zip ../release/esp-isolator-${{ matrix.name }}-${{ github.ref_name }}.zip ./*
+          zip ../release/esp-tools-${{ matrix.name }}-${{ github.ref_name }}.zip ./*
       - name: Stage MSI
         if: matrix.ASSET == 'msi'
         run: |

@@ -813,7 +813,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "esp-isolator"
+name = "esp-tools"
 version = "0.1.8"
 dependencies = [
  "clap",

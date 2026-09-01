@@ -1,4 +1,4 @@
-# ESP Isolator
+# ESP Tools
 
 Reads the statics from a ESP file and packages the ESP, meshes, and textures into a single zip. I use this for submitting files to the Tamriel Rebuilt website.
 
@@ -6,11 +6,11 @@ Reads the statics from a ESP file and packages the ESP, meshes, and textures int
 
 # Installation
 
-On Windows, download and install the msi file from the [releases](https://github.com/nicholas477/esp-isolator/releases) page.
+On Windows, download and install the msi file from the [releases](https://github.com/nicholas477/esp-tools/releases) page.
 
 # How to use
 
-On Windows, right click your ESP file and select "Run esp-isolator". A zip file will be produced with the same name as the esp file, in the same directory.
+On Windows, right click your ESP file and select "Run esp-tools". A zip file will be produced with the same name as the esp file, in the same directory.
 
 There's also a command line interface:
 
@@ -20,7 +20,7 @@ There's also a command line interface:
 ```text
 Grabs the statics from an ESP file, then packages the meshes, textures, and the ESP file into a single zip.
 
-Usage: esp-isolator.exe [OPTIONS] [FILE]
+Usage: esp-tools.exe [OPTIONS] [FILE]
 
 Arguments:
   [FILE]  ESP file to isolate meshes and textures from
