@@ -42,7 +42,7 @@ async fn run(args: &args::Args) -> Result<(), Box<dyn std::error::Error>> {
             commands::package::package_esp_file(package_command).await?;
         }
         args::Commands::Update => {
-            update::update()?;
+            update::update().await?;
         }
     }
 
