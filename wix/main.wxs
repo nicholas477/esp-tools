@@ -125,24 +125,48 @@
                         <Component Id='ExplorerContextMenu' Guid='*'>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esp\shell\EspIsolator'
-                            Value='Run esp-tools'
+                            Key='SystemFileAssociations\.esp\shell\EspTools'
+                            Name='MUIVerb'
+                            Value='ESP Tools'
                             Type='string'
                             KeyPath='yes'/>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esp\shell\EspIsolator\command'
-                            Value='&quot;[Bin]esp-tools.exe&quot; &quot;%1&quot; --pause'
+                            Key='SystemFileAssociations\.esp\shell\EspTools'
+                            Name='SubCommands'
+                            Value=''
                             Type='string'/>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esm\shell\EspIsolator'
-                            Value='Run esp-tools'
+                            Key='SystemFileAssociations\.esp\shell\EspTools\shell\Package'
+                            Value='Package'
                             Type='string'/>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esm\shell\EspIsolator\command'
-                            Value='&quot;[Bin]esp-tools.exe&quot; &quot;%1&quot; --pause'
+                            Key='SystemFileAssociations\.esp\shell\EspTools\shell\Package\command'
+                            Value='&quot;[Bin]esp-tools.exe&quot; --gui package &quot;%1&quot;'
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools'
+                            Name='MUIVerb'
+                            Value='ESP Tools'
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools'
+                            Name='SubCommands'
+                            Value=''
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools\shell\Package'
+                            Value='Package'
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools\shell\Package\command'
+                            Value='&quot;[Bin]esp-tools.exe&quot; --gui package &quot;%1&quot;'
                             Type='string'/>
                         </Component>
                     </Directory>
@@ -170,7 +194,7 @@
             <Feature
               Id='ExplorerContextMenuFeature'
               Title='Explorer Context Menu'
-              Description='Add a Run esp-tools command when right-clicking ESP and ESM files.'
+              Description='Add esp-tools commands when right-clicking ESP and ESM files.'
               Level='1'
               Absent='allow'>
               <ComponentRef Id='ExplorerContextMenu'/>

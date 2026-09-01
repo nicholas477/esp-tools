@@ -18,22 +18,15 @@ There's also a command line interface:
 
 <!-- BEGIN GENERATED HELP -->
 ```text
-Grabs the statics from an ESP file, then packages the meshes, textures, and the ESP file into a single zip.
+Usage: esp-tools.exe [OPTIONS] <COMMAND>
 
-Usage: esp-tools.exe [OPTIONS] [FILE]
-
-Arguments:
-  [FILE]  ESP file to isolate meshes and textures from
+Commands:
+  package  Package an ESP file into a zip
+  update   Update the program to the latest version
+  help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -o, --output <OUTPUT>       (Optional) Output file path. If not specified, the zip file will be created in the same directory as the input ESP file
-  -p, --pause                 Pause before exiting. If specified, the program will wait for user input before exiting
-  -u, --update                Update the program to the latest version.
-                              If specified, all other arguments except --pause will be ignored, and the program will check for updates and apply them if available.
-  -i, --include-master-files  Include assets that are also referenced by master plugins.
-                              If specified, the program will include assets that are referenced by master files into the zip file.
-                              By default, assets that are referenced by master files will be excluded from the zip file.
-  -h, --help                  Print help
-  -V, --version               Print version
+      --gui   Opens the GUI for the command
+  -h, --help  Print help
 ```
 <!-- END GENERATED HELP -->

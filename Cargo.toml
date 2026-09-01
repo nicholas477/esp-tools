@@ -10,7 +10,11 @@ description = "Reads the statics from a ESP file and packages the ESP, meshes, a
 clap = { version = "4.6.6", features = ["derive"] }
 zip = "8.6.0"
 tes3 = { git = "https://github.com/Greatness7/tes3", features = ["esp", "nif"] }
-self_update = "1.2.0"
+self_update = { version = "1.2.0", features = ["async"] }
 log = "0.4.34"
 env_logger = "0.11.11"
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(target_os = "windows")']
+dependencies = { native-windows-gui = "1.0.13", native-windows-derive = "1.0.3" }
+build-dependencies = { embed-manifest = "1.5.0" }
