@@ -170,7 +170,6 @@ pub fn run(args: &crate::args::Args) -> Result<(), Box<dyn std::error::Error>> {
             )
             .build(&mut package_tooltip)?;
         nwg::dispatch_thread_events();
-        //Ok(app.action.get())
     }
 
     Ok(())

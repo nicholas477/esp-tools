@@ -1,22 +1,13 @@
+use ::log::{error, info};
 use std::collections::hash_set::HashSet;
 use std::path::{Path, PathBuf};
-
-use ::log::{error, info};
 use tes3::esp::{Plugin, Static};
 use tes3::nif::TextureSource::External;
 use tes3::nif::{NiSourceTexture, NiStream};
 use tokio::task::JoinSet;
 
-/// Adds a non-empty, UTF-8 asset path to the collection.
-fn add_file_path(files: &mut HashSet<String>, file_path: &Path) -> bool {
-    if !file_path.is_empty()
-        && let Some(path) = file_path.to_str().map(std::string::ToString::to_string)
-    {
-        return files.insert(path);
-    }
-
-    false
-}
+mod types;
+pub use types::*;
 
 /// Verifies that a referenced file exists and reports the file that references it.
 fn validate_referenced_file(
@@ -41,14 +32,17 @@ fn validate_referenced_file(
     ))
 }
 
-/// Loads a mesh and collects its external textures, optionally validating its references.
+/// Loads a mesh and returns its external textures, optionally validating its references.
 fn scan_mesh_textures(
     mesh_path: &Path,
     plugin_file: &Path,
     plugin_path: &Path,
     validate_references: bool,
-) -> Result<HashSet<String>, String> {
-    let full_path = plugin_path.join(mesh_path);
+) -> Result<Vec<PathBuf>, String> {
+    let mesh_asset_path = AssetPath {
+        relative_path: mesh_path.to_path_buf(),
+    };
+    let full_path = mesh_asset_path.make_full(plugin_path);
     if validate_references {
         validate_referenced_file(plugin_file, mesh_path, &full_path)?;
     }
@@ -63,10 +57,10 @@ fn scan_mesh_textures(
             ));
         }
 
-        return Ok(HashSet::new());
+        return Ok(Vec::new());
     }
 
-    let mut files = HashSet::new();
+    let mut textures = Vec::new();
     for object in stream.objects_of_type::<NiSourceTexture>() {
         if let External(file_name) = &object.source {
             let texture_path = Path::new(file_name);
@@ -75,11 +69,11 @@ fn scan_mesh_textures(
             if validate_references {
                 validate_referenced_file(&full_path, texture_path, &texture_full_path)?;
             }
-            add_file_path(&mut files, texture_path);
+            textures.push(texture_path.to_path_buf());
         }
     }
 
-    Ok(files)
+    Ok(textures)
 }
 
 /// Loads a plugin in a blocking task so it does not block the async runtime.
@@ -147,7 +141,7 @@ pub async fn collect_master_plugin_files(
 
 /// Removes input assets that are also referenced by any discovered master plugin.
 pub async fn remove_master_asset_files(
-    files: &mut HashSet<String>,
+    assets: &AssetGraph,
     master_plugin_files: &HashSet<PathBuf>,
     plugin_path: &Path,
 ) -> Result<(), String> {
@@ -173,10 +167,17 @@ pub async fn remove_master_asset_files(
     while let Some(task_result) = tasks.join_next().await {
         let (master_plugin_file, master_asset_files) =
             task_result.map_err(|error| format!("Master asset scan task failed: {error}"))??;
-        for asset_file in master_asset_files {
-            if files.remove(&asset_file) {
+        for master_asset_path in master_asset_files.asset_paths() {
+            let master_asset_path = AssetPath {
+                relative_path: master_asset_path,
+            };
+            if let Some(asset) = assets.lookup_asset(&master_asset_path)
+                && asset.kind != Type::Plugin
+                && assets.remove_asset(&asset)
+            {
                 info!(
-                    "Excluding asset {asset_file} because it is referenced by master plugin {}.",
+                    "Excluding asset {} because it is referenced by master plugin {}.",
+                    asset.path.relative_path.display(),
                     master_plugin_file.display()
                 );
             }
@@ -186,31 +187,57 @@ pub async fn remove_master_asset_files(
     Ok(())
 }
 
-/// Returns meshes and external textures referenced by static objects in a plugin.
+/// Returns an asset graph containing the plugin, its meshes, and their external textures.
 pub async fn collect_asset_files(
     plugin: &Plugin,
     plugin_file: &Path,
     plugin_path: &Path,
     validate_references: bool,
-) -> Result<HashSet<String>, String> {
-    let mut files = HashSet::new();
+) -> Result<AssetGraph, String> {
+    let assets = AssetGraph::new();
+    let plugin_name = plugin_file
+        .file_name()
+        .ok_or_else(|| format!("Plugin path has no file name: {}", plugin_file.display()))?;
+    let plugin_asset = assets.add_root_asset(
+        Type::Plugin,
+        AssetPath {
+            relative_path: PathBuf::from(plugin_name),
+        },
+    );
     let mut tasks = JoinSet::new();
 
     for object in plugin.objects_of_type::<Static>() {
         let mesh_path = Path::new("meshes").join(&object.mesh);
-        add_file_path(&mut files, &mesh_path);
+        let mesh_asset = assets.add_asset(
+            Type::Mesh,
+            AssetPath {
+                relative_path: mesh_path.clone(),
+            },
+            &plugin_asset,
+        );
         let plugin_file = plugin_file.to_path_buf();
         let plugin_path = plugin_path.to_path_buf();
         tasks.spawn_blocking(move || {
-            scan_mesh_textures(&mesh_path, &plugin_file, &plugin_path, validate_references)
+            let textures =
+                scan_mesh_textures(&mesh_path, &plugin_file, &plugin_path, validate_references)?;
+            Ok::<_, String>((mesh_asset, textures))
         });
     }
 
     while let Some(task_result) = tasks.join_next().await {
-        let texture_files =
+        let (mesh_asset, textures) =
             task_result.map_err(|error| format!("NIF scan task failed: {error}"))??;
-        files.extend(texture_files);
+        for texture_path in textures {
+            assets.add_asset(
+                Type::Texture,
+                AssetPath {
+                    relative_path: texture_path,
+                },
+                &mesh_asset,
+            );
+        }
     }
 
-    Ok(files)
+    assets.assert_valid();
+    Ok(assets)
 }

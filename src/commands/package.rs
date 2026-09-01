@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::Path};
+use std::path::{Path, PathBuf};
 
 use log::{error, info};
 use zip::{CompressionMethod, write::FileOptions};
@@ -36,14 +36,7 @@ pub async fn package_esp_file(
     let plugin = assets::load_plugin(&input_file).await?;
 
     // Collect all mesh references and their textures for the statics in the ESP file.
-    let mut files = assets::collect_asset_files(&plugin, &input_file, plugin_path, true).await?;
-    files.insert(
-        input_file
-            .file_name()
-            .and_then(|file_name| file_name.to_str())
-            .ok_or("Input file name is not valid Unicode")?
-            .to_string(),
-    );
+    let assets = assets::collect_asset_files(&plugin, input_file, plugin_path, true).await?;
 
     if !args.include_master_files {
         // Lookup master plugin files and remove any assets that are also referenced by them.
@@ -68,21 +61,22 @@ pub async fn package_esp_file(
             }
         }
 
-        assets::remove_master_asset_files(&mut files, &master_plugin_files, plugin_path).await?;
+        assets::remove_master_asset_files(&assets, &master_plugin_files, plugin_path).await?;
     }
 
+    let mut file_paths = assets.asset_paths();
+    file_paths.sort();
+
     {
-        info!("-- Zipping {} files:", files.len());
-        let mut files = files.iter().collect::<Vec<&String>>();
-        files.sort();
-        for file in &files {
-            info!("\t-- {file}");
+        info!("-- Zipping {} files:", file_paths.len());
+        for file_path in &file_paths {
+            info!("\t-- {}", file_path.display());
         }
     }
 
     info!("Creating zip file at: \"{}\"", zip_path.display());
 
-    zip_files(&files, plugin_path, &zip_path)?;
+    zip_files(&file_paths, plugin_path, &zip_path)?;
 
     info!(
         "Zip file created successfully at: \"{}\"",
@@ -92,8 +86,8 @@ pub async fn package_esp_file(
     Ok(())
 }
 
-fn zip_files(
-    files: &HashSet<String>,
+pub fn zip_files(
+    files: &[PathBuf],
     data_files_path: &Path,
     output_zip_path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -104,9 +98,12 @@ fn zip_files(
         FileOptions::default().compression_method(CompressionMethod::DEFLATE);
 
     for file_path in files {
-        let path = data_files_path.join(Path::new(file_path));
+        let path = data_files_path.join(file_path);
         if path.is_file() {
-            zip.start_file(file_path, options)?;
+            let zip_path = file_path.to_str().ok_or_else(|| {
+                format!("Asset path is not valid Unicode: {}", file_path.display())
+            })?;
+            zip.start_file(zip_path, options)?;
             let mut f = std::fs::File::open(path)?;
             std::io::copy(&mut f, &mut zip)?;
         } else {
