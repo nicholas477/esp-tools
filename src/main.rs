@@ -32,18 +32,17 @@ async fn main() {
 }
 
 async fn run(args: &args::Args) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "windows")]
     if args.gui {
-        #[cfg(target_os = "windows")]
-        windows::run(args)?;
-    } else {
-        match &args.command {
-            args::Commands::Package(package_command) => {
-                #[cfg(not(target_os = "windows"))]
-                commands::package::package_esp_file(package_command.clone()).await?;
-            }
-            args::Commands::Update => {
-                update::update()?;
-            }
+        return windows::run(args);
+    }
+
+    match &args.command {
+        args::Commands::Package(package_command) => {
+            commands::package::package_esp_file(package_command).await?;
+        }
+        args::Commands::Update => {
+            update::update()?;
         }
     }
 

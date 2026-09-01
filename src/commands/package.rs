@@ -6,9 +6,9 @@ use zip::{CompressionMethod, write::FileOptions};
 use crate::{args, assets};
 
 pub async fn package_esp_file(
-    args: args::PackageCommand,
+    args: &args::PackageCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let input_file = args.file;
+    let input_file = &args.file;
 
     if !input_file.is_file() {
         return Err(format!(
@@ -28,6 +28,7 @@ pub async fn package_esp_file(
 
     // output path
     let zip_path = args
+        .clone()
         .output
         .unwrap_or(Path::new(&input_file).with_extension("zip"));
 
