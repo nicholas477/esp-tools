@@ -235,26 +235,38 @@ impl EspTreeApp {
         let cancel_x = width.saturating_sub(BUTTON_WIDTH + MARGIN);
         let package_x = cancel_x.saturating_sub(BUTTON_WIDTH + MARGIN);
 
+        // Loading label
         self.loading_label
-            .set_position(MARGIN as i32, MARGIN as i32);
+            .set_position(MARGIN.cast_signed(), MARGIN.cast_signed());
         self.loading_label.set_size(tree_width, 20);
+
+        // Progress bar
         self.loading_progress
-            .set_position(MARGIN as i32, (MARGIN + 24) as i32);
+            .set_position(MARGIN.cast_signed(), (MARGIN + 24).cast_signed());
         self.loading_progress.set_size(tree_width, 16);
-        self.tree
-            .set_position(MARGIN as i32, (MARGIN + loading_height) as i32);
+
+        // Tree view
+        self.tree.set_position(
+            MARGIN.cast_signed(),
+            (MARGIN + loading_height).cast_signed(),
+        );
         self.tree.set_size(tree_width, tree_height);
-        self.file_list
-            .set_position(MARGIN as i32, (MARGIN + loading_height) as i32);
+
+        // File list
+        self.file_list.set_position(
+            MARGIN.cast_signed(),
+            (MARGIN + loading_height).cast_signed(),
+        );
         self.file_list.set_size(tree_width, tree_height);
+
         self.tree_view_button
-            .set_position(MARGIN as i32, button_y as i32);
+            .set_position(MARGIN.cast_signed(), button_y.cast_signed());
         self.flat_file_view_button
-            .set_position((MARGIN + 88) as i32, button_y as i32);
+            .set_position((MARGIN + 88).cast_signed(), button_y.cast_signed());
         self.package_button
-            .set_position(package_x as i32, button_y as i32);
+            .set_position(package_x.cast_signed(), button_y.cast_signed());
         self.cancel_button
-            .set_position(cancel_x as i32, button_y as i32);
+            .set_position(cancel_x.cast_signed(), button_y.cast_signed());
     }
 
     fn show_tree_view(&self) {
