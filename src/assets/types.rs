@@ -366,7 +366,7 @@ impl AssetGraph {
         self.nodes.remove(path).is_some()
     }
 
-    pub fn lookup_asset<'a>(&'a self, path: &AssetPath) -> Option<AssetRef> {
+    pub fn lookup_asset(&self, path: &AssetPath) -> Option<AssetRef> {
         self.nodes.get(path).map(|asset| AssetRef::new(&asset))
     }
 
