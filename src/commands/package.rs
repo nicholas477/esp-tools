@@ -1,15 +1,22 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use log::{error, info};
 use zip::{CompressionMethod, write::FileOptions};
 
 use crate::{args, assets};
 
-pub async fn package_esp_file(
-    args: &args::PackageCommand,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let input_file = &args.file;
+pub struct EspFileGraph {
+    pub plugin: assets::AssetRef,
+    pub graph: assets::AssetGraph,
+    pub plugin_path: PathBuf,
+}
 
+pub async fn get_esp_file_graph(
+    input_file: &Path,
+) -> Result<EspFileGraph, Box<dyn std::error::Error>> {
     if !input_file.is_file() {
         return Err(format!(
             "The provided path is not a file: \"{}\"",
@@ -26,62 +33,107 @@ pub async fn package_esp_file(
         .into());
     }
 
+    let plugin_path = input_file.parent().unwrap();
+    let plugin_asset = assets::Asset {
+        kind: assets::Type::Plugin,
+        path: assets::AssetPath {
+            relative_path: input_file.strip_prefix(plugin_path)?.to_path_buf(),
+        },
+    };
+
+    let (graph, plugin) = assets::AssetGraph::new_with_root(&plugin_asset);
+
+    // Collect all asset references and their dependencies for the plugin in the ESP file.
+    let scanned_assets = std::sync::Arc::new(dashmap::DashSet::new());
+    assets::collect_references(&graph, &plugin, &plugin_path, &scanned_assets).await;
+
+    Ok(EspFileGraph {
+        plugin: plugin,
+        graph: graph,
+        plugin_path: plugin_path.to_path_buf(),
+    })
+}
+
+pub fn get_esp_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::AssetRef> {
+    let mut assets = HashSet::new();
+    assets.insert(plugin.clone());
+    for child in plugin.children(false) {
+        if let Some(asset) = child.upgrade() {
+            if asset.asset.kind != assets::Type::Plugin {
+                assets.insert(child.clone());
+                assets.extend(child.children(true));
+            }
+        }
+    }
+    assets
+}
+
+// Removes master file assets from the provided set of assets and returns a new set containing only the master file assets that were removed.
+pub fn remove_master_file_assets(
+    assets: &mut HashSet<assets::AssetRef>,
+) -> HashSet<assets::AssetRef> {
+    let mut master_file_assets = HashSet::new();
+
+    assets.retain(|asset| {
+        if asset.upgrade().unwrap().kind == assets::Type::Plugin {
+            master_file_assets.insert(asset.clone());
+            info!(
+                "Excluding master file {} from package",
+                asset.upgrade().unwrap().path.relative_path.display()
+            );
+            return false;
+        }
+        true
+    });
+
+    master_file_assets
+}
+
+pub async fn package_esp_file(
+    args: &args::PackageCommand,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let input_file = &args.file;
+
+    let EspFileGraph {
+        plugin,
+        graph,
+        plugin_path,
+    } = get_esp_file_graph(input_file).await?;
+
+    let mut assets = get_esp_file_assets(&plugin);
+    let _removed_assets = remove_master_file_assets(&mut assets);
+
+    info!("-- Zipping {} files:", assets.len());
+    for asset in &assets {
+        info!("\t-- {asset}");
+    }
+
     // output path
     let zip_path = args
         .clone()
         .output
         .unwrap_or(Path::new(&input_file).with_extension("zip"));
-
-    let plugin_path = input_file.parent().unwrap();
-    let plugin = assets::load_plugin(&input_file).await?;
-
-    // Collect all mesh references and their textures for the statics in the ESP file.
-    let assets = assets::collect_asset_files(&plugin, input_file, plugin_path, true).await?;
-
-    if !args.include_master_files {
-        // Lookup master plugin files and remove any assets that are also referenced by them.
-        let master_plugin_files =
-            assets::collect_master_plugin_files(&plugin, &input_file, plugin_path).await?;
-
-        {
-            info!(
-                "-- Excluding assets from {} master plugins:",
-                master_plugin_files.len()
-            );
-            let mut master_plugin_files = master_plugin_files.iter().collect::<Vec<_>>();
-            master_plugin_files.sort();
-            for master_plugin_file in master_plugin_files {
-                info!(
-                    "\t-- {}",
-                    master_plugin_file
-                        .file_name()
-                        .unwrap_or(master_plugin_file.as_os_str())
-                        .to_string_lossy()
-                );
-            }
-        }
-
-        assets::remove_master_asset_files(&assets, &master_plugin_files, plugin_path).await?;
-    }
-
-    let mut file_paths = assets.asset_paths();
-    file_paths.sort();
-
-    {
-        info!("-- Zipping {} files:", file_paths.len());
-        for file_path in &file_paths {
-            info!("\t-- {}", file_path.display());
-        }
-    }
-
     info!("Creating zip file at: \"{}\"", zip_path.display());
 
-    zip_files(&file_paths, plugin_path, &zip_path)?;
+    zip_files(
+        &assets
+            .iter()
+            .map(|asset| asset.upgrade().unwrap().path.relative_path.clone())
+            .collect::<Vec<PathBuf>>(),
+        &plugin_path,
+        &zip_path,
+    )?;
 
     info!(
         "Zip file created successfully at: \"{}\"",
         zip_path.display()
     );
+
+    // The graph is heavy af, just drop it on another thread so it doesn't block the main thread from exiting.
+    // This won't finish running since we call std::process::exit() in main(). This is intended
+    std::thread::spawn(move || {
+        drop(graph);
+    });
 
     Ok(())
 }
