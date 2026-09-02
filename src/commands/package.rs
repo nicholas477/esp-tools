@@ -8,6 +8,7 @@ use zip::{CompressionMethod, write::FileOptions};
 
 use crate::{args, assets};
 
+#[allow(dead_code)]
 pub struct EspFileGraph {
     pub plugin: assets::AssetRef,
     pub graph: assets::AssetGraph,
@@ -45,11 +46,11 @@ pub async fn scan_esp_file_graph(
 
     // Collect all asset references and their dependencies for the plugin in the ESP file.
     let scanned_assets = std::sync::Arc::new(dashmap::DashSet::new());
-    assets::collect_references(&graph, &plugin, &plugin_path, &scanned_assets).await;
+    assets::collect_references(&graph, &plugin, plugin_path, &scanned_assets).await;
 
     Ok(EspFileGraph {
-        plugin: plugin,
-        graph: graph,
+        plugin,
+        graph,
         plugin_path: plugin_path.to_path_buf(),
     })
 }
@@ -58,11 +59,11 @@ pub fn get_esp_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::AssetRe
     let mut assets = HashSet::new();
     assets.insert(plugin.clone());
     for child in plugin.children(false) {
-        if let Some(asset) = child.upgrade() {
-            if asset.asset.kind != assets::Type::Plugin {
-                assets.insert(child.clone());
-                assets.extend(child.children(true));
-            }
+        if let Some(asset) = child.upgrade()
+            && asset.asset.kind != assets::Type::Plugin
+        {
+            assets.insert(child.clone());
+            assets.extend(child.children(true));
         }
     }
     assets
@@ -110,7 +111,7 @@ pub async fn package_esp_file(
 
     let EspFileGraph {
         plugin,
-        graph,
+        graph: _,
         plugin_path,
     } = scan_esp_file_graph(input_file).await?;
 

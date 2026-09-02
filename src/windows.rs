@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-use log::info;
 use native_windows_gui::ListViewColumnFlags;
 use nwg::NativeUi;
 

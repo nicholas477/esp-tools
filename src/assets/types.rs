@@ -20,6 +20,7 @@ pub struct AssetPath {
     pub relative_path: PathBuf,
 }
 
+#[allow(dead_code)]
 impl AssetPath {
     pub fn make_full(&self, base_path: &Path) -> PathBuf {
         base_path.join(&self.relative_path)
@@ -76,7 +77,7 @@ impl AssetRef {
 impl fmt::Display for AssetRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(asset) = self.upgrade() {
-            write!(f, "AssetRef({:?})", asset)
+            write!(f, "AssetRef({asset:?})")
         } else {
             write!(f, "AssetRef(Dropped)")
         }
@@ -86,7 +87,7 @@ impl fmt::Display for AssetRef {
 impl fmt::Debug for AssetRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(asset) = self.upgrade() {
-            write!(f, "AssetRef({:?})", asset)
+            write!(f, "AssetRef({asset:?})")
         } else {
             write!(f, "AssetRef(Dropped)")
         }
@@ -109,12 +110,7 @@ impl Eq for AssetRef {}
 
 impl PartialOrd for AssetRef {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(
-            self.upgrade()
-                .unwrap()
-                .path
-                .cmp(&other.upgrade().unwrap().path),
-        )
+        Some(self.cmp(other))
     }
 }
 
@@ -161,6 +157,7 @@ pub struct AssetNode {
     pub parents: Set<AssetRef>,
 }
 
+#[allow(dead_code)]
 impl AssetNode {
     pub fn new(asset: Asset) -> Self {
         AssetNode {
@@ -292,7 +289,7 @@ impl Asset {
                         let mesh_path = Path::new("meshes").join(&object.mesh);
                         children.insert(Asset {
                             path: AssetPath {
-                                relative_path: PathBuf::from(mesh_path),
+                                relative_path: mesh_path,
                             },
                             kind: Type::Mesh,
                         });
@@ -327,11 +324,16 @@ impl Asset {
     }
 }
 
+/// A graph of assets, where each asset can have multiple children and parents.
+///
+/// I'm not really happy with the way I've implemented this, the memory fragmentation must be insane tbh.
+/// The speed isn't so bad. The only slow operation is Drop, and we can just ignore that by dropping it in another thread.
 #[derive(Clone)]
 pub struct AssetGraph {
     pub nodes: Arc<Map<AssetPath, Arc<AssetNode>>>,
 }
 
+#[allow(dead_code)]
 impl AssetGraph {
     pub fn new() -> Self {
         AssetGraph {
