@@ -12,13 +12,6 @@ use crate::args::Commands::Package;
 use crate::commands::package::{self, EspFileGraph};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-pub enum GuiAction {
-    #[default]
-    Cancel,
-    Package,
-}
-
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum ViewMode {
     #[default]
     Tree,
@@ -37,11 +30,13 @@ pub struct EspTreeApp {
     window: nwg::Window,
 
     initial_plugin: Option<PathBuf>,
-    action: Cell<GuiAction>,
     view_mode: Cell<ViewMode>,
     is_loading: Cell<bool>,
     scan_receiver: RefCell<Option<Receiver<Result<EspFileGraph, String>>>>,
     scan_result: RefCell<Option<EspFileGraph>>,
+    package_files: RefCell<Vec<PathBuf>>,
+    output_zip_path: Option<PathBuf>,
+    package_receiver: RefCell<Option<Receiver<Result<(), String>>>>,
 
     #[nwg_control(parent: window)]
     tree: nwg::TreeView,
@@ -58,6 +53,10 @@ pub struct EspTreeApp {
     #[nwg_control]
     #[nwg_events(OnNotice: [EspTreeApp::finish_loading])]
     scan_complete: nwg::Notice,
+
+    #[nwg_control]
+    #[nwg_events(OnNotice: [EspTreeApp::finish_packaging])]
+    package_complete: nwg::Notice,
 
     #[nwg_control(text: "Tree", parent: window, size: (80, 32))]
     #[nwg_events(OnButtonClick: [EspTreeApp::show_tree_view])]
@@ -82,8 +81,41 @@ impl EspTreeApp {
     }
 
     fn package_mod(&self) {
-        self.action.set(GuiAction::Package);
-        nwg::stop_thread_dispatch();
+        let Some(plugin_path) = self
+            .scan_result
+            .borrow()
+            .as_ref()
+            .map(|graph| graph.plugin_path.clone())
+        else {
+            nwg::simple_message("ESP Tools", "Asset references are not ready yet.");
+            return;
+        };
+        let Some(output_zip_path) = self.output_zip_path.clone() else {
+            nwg::simple_message("ESP Tools", "No output ZIP path is available.");
+            return;
+        };
+        let package_files = self.package_files.borrow().clone();
+
+        self.is_loading.set(true);
+        self.loading_label.set_text("Creating mod package...");
+        self.loading_label.set_visible(true);
+        self.loading_progress.set_visible(true);
+        self.package_button.set_enabled(false);
+        self.cancel_button.set_enabled(false);
+        self.tree_view_button.set_enabled(false);
+        self.flat_file_view_button.set_enabled(false);
+        self.resize_controls();
+
+        let (sender, receiver) = mpsc::channel();
+        *self.package_receiver.borrow_mut() = Some(receiver);
+        let notice_sender = self.package_complete.sender();
+
+        thread::spawn(move || {
+            let result = package::zip_files(&package_files, &plugin_path, &output_zip_path)
+                .map_err(|error| error.to_string());
+            let _ = sender.send(result);
+            notice_sender.notice();
+        });
     }
 
     fn load_initial_plugin(&self) {
@@ -137,11 +169,52 @@ impl EspTreeApp {
 
         match result {
             Ok(graph) => {
+                let package_files = package::get_esp_file_assets(&graph.plugin)
+                    .into_iter()
+                    .filter_map(|asset| {
+                        asset
+                            .upgrade()
+                            .map(|node| node.asset.path.relative_path.clone())
+                    })
+                    .collect();
+                *self.package_files.borrow_mut() = package_files;
                 *self.scan_result.borrow_mut() = Some(graph);
                 self.render_current_view();
                 self.package_button.set_enabled(true);
             }
             Err(error) => {
+                nwg::simple_message("ESP Tools", &error);
+            }
+        }
+    }
+
+    fn finish_packaging(&self) {
+        let result = {
+            let receiver = self.package_receiver.borrow();
+            let Some(receiver) = receiver.as_ref() else {
+                return;
+            };
+            receiver.try_recv()
+        };
+        let Ok(result) = result else {
+            return;
+        };
+
+        self.is_loading.set(false);
+        self.loading_label.set_visible(false);
+        self.loading_progress.set_visible(false);
+        self.resize_controls();
+
+        match result {
+            Ok(()) => {
+                nwg::simple_message("ESP Tools", "Mod package created successfully.");
+                nwg::stop_thread_dispatch();
+            }
+            Err(error) => {
+                self.package_button.set_enabled(true);
+                self.cancel_button.set_enabled(true);
+                self.tree_view_button.set_enabled(true);
+                self.flat_file_view_button.set_enabled(true);
                 nwg::simple_message("ESP Tools", &error);
             }
         }
@@ -212,19 +285,17 @@ impl EspTreeApp {
             ViewMode::FlatFiles => {
                 self.tree.set_visible(false);
                 self.file_list.set_visible(true);
-                self.show_flat_files(&plugin);
+                self.show_flat_files();
             }
         }
     }
 
-    fn show_flat_files(&self, plugin: &crate::assets::AssetRef) {
-        let mut assets = package::get_esp_file_assets(plugin)
-            .into_iter()
-            .filter_map(|asset| {
-                asset
-                    .upgrade()
-                    .map(|node| node.asset.path.relative_path.display().to_string())
-            })
+    fn show_flat_files(&self) {
+        let mut assets = self
+            .package_files
+            .borrow()
+            .iter()
+            .map(|path| path.display().to_string())
             .collect::<Vec<_>>();
         assets.sort();
         self.file_list.set_collection(assets);
@@ -280,6 +351,11 @@ pub fn run(args: &crate::args::Args) -> Result<(), Box<dyn std::error::Error>> {
 
         let app = EspTreeApp::build_ui(EspTreeApp {
             initial_plugin: Some(args.file.clone()),
+            output_zip_path: Some(
+                args.output
+                    .clone()
+                    .unwrap_or_else(|| args.file.with_extension("zip")),
+            ),
             ..Default::default()
         })?;
         let mut package_tooltip = nwg::Tooltip::default();

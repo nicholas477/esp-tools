@@ -1,8 +1,3 @@
-// #![cfg_attr(
-//     all(target_os = "windows", not(debug_assertions)),
-//     windows_subsystem = "windows"
-// )]
-
 use ::log::{error, info};
 use clap::Parser;
 
@@ -40,6 +35,7 @@ fn main() {
 fn run(args: &args::Args) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "windows")]
     if args.gui {
+        hide_console_ng::hide_console();
         return windows::run(args);
     }
 

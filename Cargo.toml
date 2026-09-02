@@ -21,4 +21,4 @@ async-recursion = "1.1.1"
 embed-manifest = "1.5.0"
 
 [target.'cfg(target_os = "windows")']
-dependencies = { native-windows-gui = "1.0.13", native-windows-derive = "1.0.3" }
+dependencies = { native-windows-gui = "1.0.13", native-windows-derive = "1.0.3", hide_console_ng = "0.1.0" }
