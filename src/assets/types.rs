@@ -261,7 +261,7 @@ impl Asset {
                 let mut stream = NiStream::new();
 
                 if stream.load_path(&mesh_path).is_err() {
-                    error!("Failed to load mesh: \"{}\"", mesh_path.display());
+                    //error!("Failed to load mesh: \"{}\"", mesh_path.display());
                     return children;
                 }
 

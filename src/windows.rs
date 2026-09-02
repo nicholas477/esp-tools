@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
+use log::info;
+use native_windows_gui::ListViewColumnFlags;
 use nwg::NativeUi;
 
 use crate::args::Commands::Package;
@@ -26,7 +28,7 @@ pub struct EspTreeApp {
 		title: "ESP Tools - Asset Tree",
 		flags: "WINDOW|VISIBLE|MINIMIZE_BOX|MAXIMIZE_BOX|RESIZABLE"
 	)]
-    #[nwg_events(OnWindowClose: [EspTreeApp::exit], OnInit: [EspTreeApp::load_initial_plugin], OnResize: [EspTreeApp::resize_controls])]
+    #[nwg_events(OnWindowClose: [EspTreeApp::exit], OnInit: [EspTreeApp::init_window], OnResize: [EspTreeApp::resize_controls])]
     window: nwg::Window,
 
     initial_plugin: Option<PathBuf>,
@@ -41,8 +43,8 @@ pub struct EspTreeApp {
     #[nwg_control(parent: window)]
     tree: nwg::TreeView,
 
-    #[nwg_control(parent: window, flags: "VISIBLE|TAB_STOP")]
-    file_list: nwg::ListBox<String>,
+    #[nwg_control(parent: window, flags:"TAB_STOP")]
+    file_list: nwg::ListView,
 
     #[nwg_control(text: "Loading asset references...", parent: window)]
     loading_label: nwg::Label,
@@ -58,11 +60,11 @@ pub struct EspTreeApp {
     #[nwg_events(OnNotice: [EspTreeApp::finish_packaging])]
     package_complete: nwg::Notice,
 
-    #[nwg_control(text: "Tree", parent: window, size: (80, 32))]
+    #[nwg_control(text: "Reference Tree", parent: window, size: (160, 32))]
     #[nwg_events(OnButtonClick: [EspTreeApp::show_tree_view])]
     tree_view_button: nwg::Button,
 
-    #[nwg_control(text: "Files", parent: window, size: (80, 32))]
+    #[nwg_control(text: "File View", parent: window, size: (100, 32))]
     #[nwg_events(OnButtonClick: [EspTreeApp::show_flat_file_view])]
     flat_file_view_button: nwg::Button,
 
@@ -77,6 +79,8 @@ pub struct EspTreeApp {
 
 impl EspTreeApp {
     fn exit(&self) {
+        let _ = self;
+
         nwg::stop_thread_dispatch();
     }
 
@@ -118,7 +122,9 @@ impl EspTreeApp {
         });
     }
 
-    fn load_initial_plugin(&self) {
+    fn init_window(&self) {
+        self.init_file_list();
+
         self.resize_controls();
         if let Some(plugin_path) = &self.initial_plugin {
             self.start_scan(plugin_path.clone());
@@ -225,7 +231,7 @@ impl EspTreeApp {
         const MARGIN: u32 = 8;
         const BUTTON_WIDTH: u32 = 120;
         const BUTTON_HEIGHT: u32 = 32;
-        const FOOTER_HEIGHT: u32 = BUTTON_HEIGHT + (MARGIN * 2);
+        const FOOTER_HEIGHT: u32 = BUTTON_HEIGHT + (MARGIN * 3);
         let loading_height = if self.is_loading.get() { 48 } else { 0 };
 
         let (width, height) = self.window.size();
@@ -257,16 +263,32 @@ impl EspTreeApp {
             MARGIN.cast_signed(),
             (MARGIN + loading_height).cast_signed(),
         );
-        self.file_list.set_size(tree_width, tree_height);
+        self.file_list.set_size(tree_width, tree_height - 2);
 
         self.tree_view_button
             .set_position(MARGIN.cast_signed(), button_y.cast_signed());
-        self.flat_file_view_button
-            .set_position((MARGIN + 88).cast_signed(), button_y.cast_signed());
+        self.flat_file_view_button.set_position(
+            (MARGIN * 2 + self.tree_view_button.size().0).cast_signed(),
+            button_y.cast_signed(),
+        );
         self.package_button
             .set_position(package_x.cast_signed(), button_y.cast_signed());
         self.cancel_button
             .set_position(cancel_x.cast_signed(), button_y.cast_signed());
+    }
+
+    fn init_file_list(&self) {
+        self.file_list.set_visible(false);
+        self.file_list.set_list_style(nwg::ListViewStyle::Detailed);
+
+        self.file_list.insert_column(nwg::InsertListViewColumn {
+            index: Some(0),
+            text: Some("File Path".to_owned()),
+            fmt: Some(ListViewColumnFlags::LEFT),
+            width: Some(800),
+        });
+
+        self.file_list.set_headers_enabled(true);
     }
 
     fn show_tree_view(&self) {
@@ -311,7 +333,16 @@ impl EspTreeApp {
             .map(|path| path.display().to_string())
             .collect::<Vec<_>>();
         assets.sort();
-        self.file_list.set_collection(assets);
+
+        self.file_list.clear();
+        for asset in &assets {
+            self.file_list.insert_item(nwg::InsertListViewItem {
+                index: None,
+                text: Some(format!("- {asset}")),
+                image: None,
+                column_index: 0,
+            });
+        }
     }
     fn show_plugin(&self, plugin: &crate::assets::AssetRef) {
         self.tree.clear();
@@ -371,6 +402,7 @@ pub fn run(args: &crate::args::Args) -> Result<(), Box<dyn std::error::Error>> {
             ),
             ..Default::default()
         })?;
+
         let mut package_tooltip = nwg::Tooltip::default();
         nwg::Tooltip::builder()
             .register(
