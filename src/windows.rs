@@ -130,6 +130,7 @@ impl EspTreeApp {
         self.package_button.set_enabled(false);
         self.loading_label.set_visible(true);
         self.loading_progress.set_visible(true);
+        self.resize_controls();
 
         let (sender, receiver) = mpsc::channel();
         *self.scan_receiver.borrow_mut() = Some(receiver);
