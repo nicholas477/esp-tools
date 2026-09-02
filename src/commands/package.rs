@@ -14,7 +14,7 @@ pub struct EspFileGraph {
     pub plugin_path: PathBuf,
 }
 
-pub async fn get_esp_file_graph(
+pub async fn scan_esp_file_graph(
     input_file: &Path,
 ) -> Result<EspFileGraph, Box<dyn std::error::Error>> {
     if !input_file.is_file() {
@@ -89,6 +89,20 @@ pub fn remove_master_file_assets(
     master_file_assets
 }
 
+#[allow(dead_code)]
+fn print_children(asset: &assets::AssetRef, depth: usize) {
+    let indent = "  ".repeat(depth);
+    info!(
+        "{}- {} ({:?})",
+        indent,
+        asset.upgrade().unwrap().path.relative_path.display(),
+        asset.upgrade().unwrap().kind
+    );
+    for child in asset.children(false) {
+        print_children(&child, depth + 1);
+    }
+}
+
 pub async fn package_esp_file(
     args: &args::PackageCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -98,7 +112,7 @@ pub async fn package_esp_file(
         plugin,
         graph,
         plugin_path,
-    } = get_esp_file_graph(input_file).await?;
+    } = scan_esp_file_graph(input_file).await?;
 
     let mut assets = get_esp_file_assets(&plugin);
     let _removed_assets = remove_master_file_assets(&mut assets);
@@ -128,12 +142,6 @@ pub async fn package_esp_file(
         "Zip file created successfully at: \"{}\"",
         zip_path.display()
     );
-
-    // The graph is heavy af, just drop it on another thread so it doesn't block the main thread from exiting.
-    // This won't finish running since we call std::process::exit() in main(). This is intended
-    std::thread::spawn(move || {
-        drop(graph);
-    });
 
     Ok(())
 }

@@ -26,8 +26,8 @@ pub async fn collect_references(
         let base_path = base_path.to_path_buf();
 
         tasks.spawn(async move {
+            let child_ref = graph.add_asset(&child.kind, &child.path, Some(parent));
             if scanned_assets.insert(child.path.clone()) {
-                let child_ref = graph.add_asset(&child.kind, &child.path, Some(parent));
                 collect_references(&graph, &child_ref, &base_path, &scanned_assets).await;
             }
         });

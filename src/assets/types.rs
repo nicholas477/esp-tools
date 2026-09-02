@@ -1,5 +1,5 @@
 use dashmap::DashSet;
-use log::{error, info};
+use log::error;
 use std::cmp::Ordering;
 use std::collections::hash_set::HashSet;
 use std::fmt;
@@ -399,6 +399,19 @@ impl AssetGraph {
                     );
                 }
             }
+        }
+    }
+}
+
+impl Drop for AssetGraph {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.nodes) == 1 {
+            // The graph is usually heavy af, just drop it on another thread so it doesn't block the main thread from exiting.
+            // This won't finish running since we call std::process::exit() in main(). This is intended
+            let nodes = self.nodes.clone();
+            std::thread::spawn(move || {
+                drop(nodes);
+            });
         }
     }
 }
