@@ -55,13 +55,13 @@ pub async fn scan_esp_file_graph(
     })
 }
 
+/// Returns a set of all assets referenced by the given ESP file plugin, including its children and their descendents.
+/// Excludes master file assets (plugins) from the returned set.
 pub fn get_esp_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::AssetRef> {
     let mut assets = HashSet::new();
     assets.insert(plugin.clone());
     for child in plugin.children(false) {
-        if let Some(asset) = child.upgrade()
-            && asset.asset.kind != assets::Type::Plugin
-        {
+        if child.map_read(|node| node.asset.kind != assets::Type::Plugin) == Some(true) {
             assets.insert(child.clone());
             assets.extend(child.children(true));
         }
@@ -69,19 +69,21 @@ pub fn get_esp_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::AssetRe
     assets
 }
 
-// Removes master file assets from the provided set of assets and returns a new set containing only the master file assets that were removed.
+/// Removes master file assets from the provided set of assets and returns a new set containing only the master file assets that were removed.
 pub fn remove_master_file_assets(
     assets: &mut HashSet<assets::AssetRef>,
 ) -> HashSet<assets::AssetRef> {
     let mut master_file_assets = HashSet::new();
 
     assets.retain(|asset| {
-        if asset.upgrade().unwrap().kind == assets::Type::Plugin {
+        if asset.map_read(|node| node.kind == assets::Type::Plugin) == Some(true) {
             master_file_assets.insert(asset.clone());
-            info!(
-                "Excluding master file {} from package",
-                asset.upgrade().unwrap().path.relative_path.display()
-            );
+            asset.map_read(|node| {
+                info!(
+                    "Excluding master file {} from package",
+                    node.path.relative_path.display()
+                );
+            });
             return false;
         }
         true
@@ -96,8 +98,12 @@ fn print_children(asset: &assets::AssetRef, depth: usize) {
     info!(
         "{}- {} ({:?})",
         indent,
-        asset.upgrade().unwrap().path.relative_path.display(),
-        asset.upgrade().unwrap().kind
+        asset
+            .map_read(|node| node.path.relative_path.display().to_string())
+            .unwrap_or_default(),
+        asset
+            .map_read(|node| node.kind.clone())
+            .unwrap_or(assets::Type::Plugin)
     );
     for child in asset.children(false) {
         print_children(&child, depth + 1);
@@ -133,7 +139,7 @@ pub async fn package_esp_file(
     zip_files(
         &assets
             .iter()
-            .map(|asset| asset.upgrade().unwrap().path.relative_path.clone())
+            .filter_map(|asset| asset.map_read(|node| node.path.relative_path.clone()))
             .collect::<Vec<PathBuf>>(),
         &plugin_path,
         &zip_path,

@@ -6,7 +6,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, RwLock};
 use tes3::esp::{Plugin, Static};
 use tes3::nif::TextureSource::External;
 use tes3::nif::{NiSourceTexture, NiStream};
@@ -15,7 +15,7 @@ pub type Set<T> = DashSet<T>;
 pub type Map<K, V> = dashmap::DashMap<K, V>;
 
 /// Asset path, always relative to a base path (usually the plugin directory)
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AssetPath {
     pub relative_path: PathBuf,
 }
@@ -43,40 +43,65 @@ impl fmt::Display for AssetPath {
     }
 }
 
-#[derive(Clone)]
-pub struct AssetRef(Weak<AssetNode>);
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct AssetRef {
+    pub index: usize,
+
+    #[serde(skip_serializing, skip_deserializing)]
+    pub nodes: Arc<RwLock<Vec<AssetNode>>>,
+}
 
 impl AssetRef {
-    pub fn new(asset: &Arc<AssetNode>) -> Self {
-        Self(Arc::downgrade(asset))
+    pub fn new(index: usize, nodes: Arc<RwLock<Vec<AssetNode>>>) -> Self {
+        Self { index, nodes }
     }
 
     /// Returns a set of child assets for this asset. If `include_descendents` is true, it will also include all descendents recursively.
     pub fn children(&self, include_descendents: bool) -> HashSet<AssetRef> {
-        self.upgrade()
+        self.nodes
+            .read()
+            .unwrap()
+            .get(self.index)
             .map(|asset| asset.children(include_descendents))
             .unwrap_or_default()
     }
 
     /// Returns a set of parent assets for this asset. If `include_ancestors` is true, it will also include all ancestors recursively.
     pub fn parents(&self, include_ancestors: bool) -> HashSet<AssetRef> {
-        self.upgrade()
+        self.nodes
+            .read()
+            .unwrap()
+            .get(self.index)
             .map(|asset| asset.parents(include_ancestors))
             .unwrap_or_default()
     }
 
-    pub fn upgrade(&self) -> Option<Arc<AssetNode>> {
-        self.0.upgrade()
+    pub fn get_copy(&self) -> Option<AssetNode> {
+        self.nodes.read().unwrap().get(self.index).cloned()
+    }
+
+    pub fn map_read<F, R>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&AssetNode) -> R,
+    {
+        self.nodes.read().unwrap().get(self.index).map(f)
+    }
+
+    pub fn map_write<F, R>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut AssetNode) -> R,
+    {
+        self.nodes.write().unwrap().get_mut(self.index).map(f)
     }
 
     pub fn ptr_eq(&self, other: &Self) -> bool {
-        self.0.ptr_eq(&other.0)
+        self.index == other.index && Arc::ptr_eq(&self.nodes, &other.nodes)
     }
 }
 
 impl fmt::Display for AssetRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(asset) = self.upgrade() {
+        if let Some(asset) = self.get_copy() {
             write!(f, "AssetRef({asset:?})")
         } else {
             write!(f, "AssetRef(Dropped)")
@@ -86,7 +111,7 @@ impl fmt::Display for AssetRef {
 
 impl fmt::Debug for AssetRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(asset) = self.upgrade() {
+        if let Some(asset) = self.get_copy() {
             write!(f, "AssetRef({asset:?})")
         } else {
             write!(f, "AssetRef(Dropped)")
@@ -96,7 +121,8 @@ impl fmt::Debug for AssetRef {
 
 impl Hash for AssetRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.as_ptr().hash(state);
+        Arc::as_ptr(&self.nodes).hash(state);
+        self.index.hash(state);
     }
 }
 
@@ -116,21 +142,21 @@ impl PartialOrd for AssetRef {
 
 impl Ord for AssetRef {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.upgrade()
+        self.get_copy()
             .unwrap()
             .path
-            .cmp(&other.upgrade().unwrap().path)
+            .cmp(&other.get_copy().unwrap().path)
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Type {
     Mesh,
     Texture,
     Plugin,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Asset {
     pub kind: Type,
     pub path: AssetPath,
@@ -151,9 +177,12 @@ impl Hash for Asset {
 }
 
 /// A node in the asset graph, representing an asset and its relationships to other assets.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct AssetNode {
     pub asset: Asset,
     pub children: Set<AssetRef>,
+
+    #[serde(skip_serializing, skip_deserializing)]
     pub parents: Set<AssetRef>,
 }
 
@@ -228,18 +257,21 @@ impl Hash for AssetNode {
 
 /// Adds a parent/child dependency between assets
 pub fn add_dependency(parent: &AssetRef, child: &AssetRef) {
-    let Some(parent) = parent.upgrade() else {
+    if parent
+        .map_write(|parent_node| parent_node.children.insert(child.clone()))
+        .is_none()
+    {
         error!("Failed to add dependency: parent asset has been dropped");
         return;
-    };
+    }
 
-    let Some(child) = child.upgrade() else {
+    if child
+        .map_write(|child_node| child_node.parents.insert(parent.clone()))
+        .is_none()
+    {
         error!("Failed to add dependency: child asset has been dropped");
         return;
-    };
-
-    parent.children.insert(AssetRef::new(&child));
-    child.parents.insert(AssetRef::new(&parent));
+    }
 }
 
 impl Asset {
@@ -330,7 +362,8 @@ impl Asset {
 /// The speed isn't so bad. The only slow operation is Drop, and we can just ignore that by dropping it in another thread.
 #[derive(Clone)]
 pub struct AssetGraph {
-    pub nodes: Arc<Map<AssetPath, Arc<AssetNode>>>,
+    pub nodes: Arc<Map<AssetPath, AssetRef>>,
+    pub nodes_by_index: Arc<RwLock<Vec<AssetNode>>>,
 }
 
 #[allow(dead_code)]
@@ -338,6 +371,7 @@ impl AssetGraph {
     pub fn new() -> Self {
         AssetGraph {
             nodes: Arc::new(dashmap::DashMap::new()),
+            nodes_by_index: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -348,15 +382,23 @@ impl AssetGraph {
     }
 
     pub fn add_asset(&self, kind: &Type, path: &AssetPath, parent: Option<AssetRef>) -> AssetRef {
-        // Atomically get or insert the asset node, and return a reference to it.
-        let asset = self
+        let nodes = self.nodes_by_index.clone();
+        let asset_ref = self
             .nodes
             .entry(path.clone())
-            .or_insert_with(|| Arc::new(AssetNode::new(Asset::new(kind.clone(), path.clone()))));
+            .or_insert_with(|| {
+                let mut nodes_by_index = nodes.write().unwrap();
+                let index = nodes_by_index.len();
+                nodes_by_index.push(AssetNode::new(Asset::new(kind.clone(), path.clone())));
+                AssetRef::new(index, nodes.clone())
+            })
+            .clone();
 
-        assert_eq!(&asset.asset.kind, kind);
+        assert_eq!(
+            asset_ref.map_read(|node| node.asset.kind.clone()).as_ref(),
+            Some(kind)
+        );
 
-        let asset_ref = AssetRef::new(&asset);
         if let Some(parent) = parent {
             add_dependency(&parent, &asset_ref);
         }
@@ -369,51 +411,54 @@ impl AssetGraph {
     }
 
     pub fn lookup_asset(&self, path: &AssetPath) -> Option<AssetRef> {
-        self.nodes.get(path).map(|asset| AssetRef::new(&asset))
+        self.nodes.get(path).map(|asset| asset.clone())
     }
 
     // For each node on the graph, verify that all of its children have it as a parent, and all of its parents have it as a child.
     pub fn assert_valid(&self) {
         let mut visited_assets = HashSet::new();
         for node in self.nodes.iter() {
-            if !visited_assets.insert(node.asset.path.clone()) {
+            let node = node.value();
+            let Some(node_copy) = node.get_copy() else {
+                continue;
+            };
+            if !visited_assets.insert(node_copy.path.clone()) {
                 continue;
             }
 
-            for child in node.children.iter() {
-                if let Some(child) = child.upgrade() {
-                    assert!(
-                        child
+            for child in node_copy.children.iter() {
+                assert!(
+                    child
+                        .map_read(|child_node| child_node
                             .parents
                             .iter()
-                            .any(|parent| parent.ptr_eq(&AssetRef::new(&node)))
-                    );
-                }
+                            .any(|parent| parent.ptr_eq(node)))
+                        .unwrap_or(false)
+                );
             }
 
-            for parent in node.parents.iter() {
-                if let Some(parent) = parent.upgrade() {
-                    assert!(
-                        parent
+            for parent in node_copy.parents.iter() {
+                assert!(
+                    parent
+                        .map_read(|parent_node| parent_node
                             .children
                             .iter()
-                            .any(|child| child.ptr_eq(&AssetRef::new(&node)))
-                    );
-                }
+                            .any(|child| child.ptr_eq(node)))
+                        .unwrap_or(false)
+                );
             }
         }
     }
-}
 
-impl Drop for AssetGraph {
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.nodes) == 1 {
-            // The graph is usually heavy af, just drop it on another thread so it doesn't block the main thread from exiting.
-            // This won't finish running since we call std::process::exit() in main(). This is intended
-            let nodes = self.nodes.clone();
-            std::thread::spawn(move || {
-                drop(nodes);
-            });
-        }
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self.nodes_by_index.read().unwrap().clone()).unwrap()
+    }
+
+    pub fn to_json_string(&self) -> String {
+        serde_json::to_string(&self.nodes_by_index.read().unwrap().clone()).unwrap()
+    }
+
+    pub fn to_pretty_json_string(&self) -> String {
+        serde_json::to_string_pretty(&self.nodes_by_index.read().unwrap().clone()).unwrap()
     }
 }

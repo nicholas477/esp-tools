@@ -16,7 +16,9 @@ pub async fn collect_references(
 ) {
     let mut tasks = JoinSet::new();
 
-    let children = asset.upgrade().unwrap().asset.load_children(base_path);
+    let children = asset
+        .map_read(|node| node.asset.load_children(base_path))
+        .unwrap_or_default();
 
     for child in children {
         let parent = asset.clone();

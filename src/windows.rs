@@ -178,9 +178,7 @@ impl EspTreeApp {
                 let package_files = package::get_esp_file_assets(&graph.plugin)
                     .into_iter()
                     .filter_map(|asset| {
-                        asset
-                            .upgrade()
-                            .map(|node| node.asset.path.relative_path.clone())
+                        asset.map_read(|node| node.asset.path.relative_path.clone())
                     })
                     .collect();
                 *self.package_files.borrow_mut() = package_files;
@@ -345,13 +343,14 @@ impl EspTreeApp {
     }
     fn show_plugin(&self, plugin: &crate::assets::AssetRef) {
         self.tree.clear();
-        let Some(plugin_node) = plugin.upgrade() else {
+        let Some(plugin_path) = plugin.map_read(|node| node.asset.path.relative_path.clone())
+        else {
             nwg::simple_message("ESP Tools", "The scanned plugin was dropped.");
             return;
         };
 
         let plugin_item = self.tree.insert_item(
-            &plugin_node.asset.path.relative_path.display().to_string(),
+            &plugin_path.display().to_string(),
             None,
             nwg::TreeInsert::Root,
         );
@@ -372,12 +371,17 @@ impl EspTreeApp {
         children.sort();
 
         for child in children {
-            if let Some(child_node) = child.upgrade() {
-                if exclude_plugin_children && child_node.asset.kind == crate::assets::Type::Plugin {
+            if let Some((child_path, child_kind)) = child.map_read(|node| {
+                (
+                    node.asset.path.relative_path.clone(),
+                    node.asset.kind.clone(),
+                )
+            }) {
+                if exclude_plugin_children && child_kind == crate::assets::Type::Plugin {
                     continue;
                 }
                 let child_item = self.tree.insert_item(
-                    &child_node.asset.path.relative_path.display().to_string(),
+                    &child_path.display().to_string(),
                     Some(parent_item),
                     nwg::TreeInsert::Last,
                 );
