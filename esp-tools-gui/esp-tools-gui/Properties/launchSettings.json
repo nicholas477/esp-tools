@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "esp-tools-gui": {
+      "commandName": "Project",
+      "debugEngines": "managed"
+    }
+  }
+}

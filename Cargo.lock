@@ -608,6 +608,7 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core",
+ "serde",
 ]
 
 [[package]]
@@ -857,6 +858,8 @@ dependencies = [
  "native-windows-derive",
  "native-windows-gui",
  "self_update",
+ "serde",
+ "serde_json",
  "tes3",
  "tokio",
  "zip",

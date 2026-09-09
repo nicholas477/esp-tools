@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>esp_tools_gui</RootNamespace>
+    <AssemblyName>esp-tools-gui</AssemblyName>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Enable debugging -->
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <StartupObject>esp_tools_gui.App</StartupObject>
+  </PropertyGroup>
+
+  <!-- Modern NuGet package replacement for packages.config -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <!-- Automatically copy the Rust DLL before building the C# project -->
+  <Target Name="CopyRustDll" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <RustDllSource>$(ProjectDir)..\..\target\$(Configuration)\esp_tools.dll</RustDllSource>
+    </PropertyGroup>
+    <Message Importance="high" Text="Copying Rust DLL from $(RustDllSource) to $(TargetDir)" />
+    <Copy SourceFiles="$(RustDllSource)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(RustDllSource)')" />
+    <Warning Text="Rust DLL not found at $(RustDllSource). Make sure to run 'cargo build' first!" Condition="!Exists('$(RustDllSource)')" />
+  </Target>
+
+</Project>

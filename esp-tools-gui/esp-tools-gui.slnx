@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="esp-tools-gui/esp-tools-gui.csproj" Id="c4b0cb0e-9bb2-4b1d-9524-e7ad87cbb08f">
+    <Platform Solution="Debug|*" Project="x64" />
+  </Project>
+</Solution>
