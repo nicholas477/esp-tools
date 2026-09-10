@@ -13,7 +13,12 @@
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <StartupObject>esp_tools_gui.App</StartupObject>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="icon.ico" />
+  </ItemGroup>
 
   <!-- Modern NuGet package replacement for packages.config -->
   <ItemGroup>
@@ -39,10 +44,8 @@
       <RustDllSource>$(ProjectDir)..\..\target\$(Configuration)\esp_tools_lib.dll</RustDllSource>
     </PropertyGroup>
     <Message Importance="high" Text="Copying Rust DLL from $(RustDllSource) to $(TargetDir)" />
-    <Copy SourceFiles="$(RustDllSource)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true"
-      Condition="Exists('$(RustDllSource)')" />
-    <Warning Text="Rust DLL not found at $(RustDllSource). Make sure to run 'cargo build' first!"
-      Condition="!Exists('$(RustDllSource)')" />
+    <Copy SourceFiles="$(RustDllSource)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(RustDllSource)')" />
+    <Warning Text="Rust DLL not found at $(RustDllSource). Make sure to run 'cargo build' first!" Condition="!Exists('$(RustDllSource)')" />
   </Target>
 
 </Project>
