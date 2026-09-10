@@ -382,6 +382,31 @@ impl AssetGraph {
     }
 
     pub fn add_asset(&self, kind: &Type, path: &AssetPath, parent: Option<AssetRef>) -> AssetRef {
+        let path = match kind {
+            Type::Texture => {
+                if path
+                    .relative_path
+                    .to_str()
+                    .unwrap()
+                    .to_lowercase()
+                    .starts_with("textures\\")
+                {
+                    path.clone()
+                } else {
+                    // append /texture
+                    AssetPath {
+                        relative_path: (format!(
+                            "textures\\{}",
+                            path.relative_path.to_str().unwrap()
+                        )
+                        .to_owned()
+                        .into()),
+                    }
+                }
+            }
+            _ => path.clone(),
+        };
+
         let nodes = self.nodes_by_index.clone();
         let asset_ref = self
             .nodes

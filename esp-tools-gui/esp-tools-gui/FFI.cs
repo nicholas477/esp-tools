@@ -51,11 +51,47 @@ namespace esp_tools_gui
         internal static extern void FreeUtf8(
             IntPtr value,
             UIntPtr valueLenBytes);
+
+        [DllImport(LibraryName,
+            EntryPoint = "esp_tools_package_zip",
+            CallingConvention = CallingConvention.Cdecl,
+            ExactSpelling = true)]
+        internal static extern bool PackageZip(
+            IntPtr graph,
+            IntPtr inputFile,
+            UIntPtr inputFileLenBytes,
+            IntPtr outputFilePath,
+            UIntPtr outputFilePathLenBytes);
+    }
+
+    // Wrapper around graph type
+    public class EspFileGraph
+    {
+        internal IntPtr Handle { get; private set; }
+
+        internal EspFileGraph(IntPtr handle)
+        {
+            Handle = handle;
+        }
+
+        public bool IsValid()
+        {
+            return Handle != IntPtr.Zero;
+        }
+
+        ~EspFileGraph()
+        {
+            if (Handle != IntPtr.Zero)
+            {
+                EspToolsNative.FreeEspFileGraph(Handle);
+                Handle = IntPtr.Zero;
+            }
+        }
     }
 
     public static class EspTools
     {
-        public static string ScanToJson(string espPath)
+        public static (string Json, EspFileGraph Graph) ScanToJson(string espPath)
         {
             if (espPath == null)
                 throw new ArgumentNullException(nameof(espPath));
@@ -65,12 +101,12 @@ namespace esp_tools_gui
             GCHandle pathHandle = GCHandle.Alloc(utf8Path, GCHandleType.Pinned);
             try
             {
-                IntPtr graph = EspToolsNative.ScanEspFileGraph(
+                EspFileGraph graph = new EspFileGraph(EspToolsNative.ScanEspFileGraph(
                     pathHandle.AddrOfPinnedObject(),
-                    new UIntPtr((ulong)utf8Path.LongLength));
+                    new UIntPtr((ulong)utf8Path.LongLength)));
 
-                if (graph == IntPtr.Zero)
-                    return null;
+                if (!graph.IsValid())
+                    return ("", null);
 
                 try
                 {
@@ -78,11 +114,11 @@ namespace esp_tools_gui
                     UIntPtr jsonLength;
 
                     if (!EspToolsNative.GetEspFileAssetsJson(
-                        graph,
+                        graph.Handle,
                         out jsonBytes,
                         out jsonLength))
                     {
-                        return null;
+                        return ("", null);
                     }
 
                     try
@@ -94,12 +130,12 @@ namespace esp_tools_gui
                                 "The returned JSON is too large for a managed byte array.");
 
                         if (byteCount == 0)
-                            return string.Empty;
+                            return ("", graph);
 
                         byte[] json = new byte[(int)byteCount];
                         Marshal.Copy(jsonBytes, json, 0, json.Length);
 
-                        return Encoding.UTF8.GetString(json);
+                        return (Encoding.UTF8.GetString(json), graph);
                     }
                     finally
                     {
@@ -108,12 +144,40 @@ namespace esp_tools_gui
                 }
                 finally
                 {
-                    EspToolsNative.FreeEspFileGraph(graph);
+                    //EspToolsNative.FreeEspFileGraph(graph.Handle);
                 }
             }
             finally
             {
                 pathHandle.Free();
+            }
+        }
+
+        public static bool PackageZip(EspFileGraph graph, string inputFilePath, string outputFilePath)
+        {
+            if (graph == null || !graph.IsValid())
+                throw new ArgumentNullException(nameof(graph));
+            if (inputFilePath == null)
+                throw new ArgumentNullException(nameof(inputFilePath));
+            if (outputFilePath == null)
+                throw new ArgumentNullException(nameof(outputFilePath));
+            byte[] utf8InputPath = Encoding.UTF8.GetBytes(inputFilePath);
+            byte[] utf8OutputPath = Encoding.UTF8.GetBytes(outputFilePath);
+            GCHandle inputHandle = GCHandle.Alloc(utf8InputPath, GCHandleType.Pinned);
+            GCHandle outputHandle = GCHandle.Alloc(utf8OutputPath, GCHandleType.Pinned);
+            try
+            {
+                return EspToolsNative.PackageZip(
+                    graph.Handle,
+                    inputHandle.AddrOfPinnedObject(),
+                    new UIntPtr((ulong)utf8InputPath.LongLength),
+                    outputHandle.AddrOfPinnedObject(),
+                    new UIntPtr((ulong)utf8OutputPath.LongLength));
+            }
+            finally
+            {
+                inputHandle.Free();
+                outputHandle.Free();
             }
         }
     }

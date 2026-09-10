@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    hash::Hash,
     path::{Path, PathBuf},
 };
 
@@ -69,15 +70,33 @@ pub fn get_esp_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::AssetRe
     assets
 }
 
+pub fn get_master_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::AssetRef> {
+    let mut master_file_assets = HashSet::new();
+    for child in plugin.children(false) {
+        if child.map_read(|node| node.asset.kind == assets::Type::Plugin) == Some(true) {
+            master_file_assets.insert(child.clone());
+            master_file_assets.extend(child.children(true));
+        }
+    }
+    master_file_assets
+}
+
 /// Removes master file assets from the provided set of assets and returns a new set containing only the master file assets that were removed.
 pub fn remove_master_file_assets(
+    plugin: &assets::AssetRef,
     assets: &mut HashSet<assets::AssetRef>,
 ) -> HashSet<assets::AssetRef> {
+    let mut master_file_plugins = HashSet::new();
     let mut master_file_assets = HashSet::new();
 
+    // Find master plugins first
     assets.retain(|asset| {
-        if asset.map_read(|node| node.kind == assets::Type::Plugin) == Some(true) {
+        if asset.index != plugin.index
+            && asset.map_read(|node| node.kind == assets::Type::Plugin) == Some(true)
+        {
+            master_file_plugins.insert(asset.clone());
             master_file_assets.insert(asset.clone());
+
             asset.map_read(|node| {
                 info!(
                     "Excluding master file {} from package",
@@ -87,6 +106,32 @@ pub fn remove_master_file_assets(
             return false;
         }
         true
+    });
+
+    // Retain only assets that do not have any master file assets as parents.
+    assets.retain(|asset| {
+        asset
+            .map_read(|node| {
+                let parents = node.parents(true);
+                let master_file_parent = parents.intersection(&master_file_plugins).next();
+                if master_file_parent.is_some() {
+                    master_file_assets.insert(asset.clone());
+
+                    info!(
+                        "Excluding asset {} because it has a master file {} asset as a parent",
+                        node.path.relative_path.display(),
+                        master_file_parent
+                            .unwrap()
+                            .map_read(|node| node.path.relative_path.clone())
+                            .unwrap()
+                            .display(),
+                    );
+                    false
+                } else {
+                    true
+                }
+            })
+            .unwrap()
     });
 
     master_file_assets
@@ -122,7 +167,7 @@ pub async fn package_esp_file(
     } = scan_esp_file_graph(input_file).await?;
 
     let mut assets = get_esp_file_assets(&plugin);
-    let _removed_assets = remove_master_file_assets(&mut assets);
+    let _removed_assets = remove_master_file_assets(&plugin, &mut assets);
 
     info!("-- Zipping {} files:", assets.len());
     for asset in &assets {

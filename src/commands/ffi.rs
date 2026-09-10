@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use log::error;
 
@@ -12,6 +15,9 @@ struct Asset {
     pub index: usize,
     pub name: String,
     pub export: bool,
+    pub is_master_asset: bool,
+    #[serde(rename = "type")]
+    pub _type: assets::Type,
     pub children: Vec<usize>,
 }
 
@@ -22,20 +28,17 @@ impl TryFrom<crate::assets::AssetRef> for Asset {
         if let Some((name, children)) =
             asset_ref.map_read(|asset| (asset.path.clone(), asset.children.clone()))
         {
-            //let name = name.to_string();
-            log::info!(
-                "Creating Asset from AssetRef with name: {}",
-                name.relative_path
-                    .clone()
-                    .into_string()
-                    .unwrap_or("".into())
-            );
-
             Ok(Self {
                 index: asset_ref.index,
-                name: name.relative_path
+                name: name
+                    .relative_path
                     .clone()
-                    .into_string().unwrap_or("".into()),
+                    .into_string()
+                    .unwrap_or_else(|_err| String::new()),
+                is_master_asset: false,
+                _type: asset_ref
+                    .map_read(|node| node.kind.clone())
+                    .unwrap_or(assets::Type::Plugin),
                 export: true,
                 children: children.into_iter().map(|child| child.index).collect(),
             })
@@ -126,17 +129,23 @@ pub unsafe extern "C" fn esp_tools_get_esp_file_assets_json(
         let graph = unsafe { graph.as_ref() }
             .ok_or_else(|| "The ESP file graph cannot be null".to_owned())?;
 
-        let assets = package::get_esp_file_assets(&graph.plugin);
-        let removed_assets = package::remove_master_file_assets(&mut assets.clone())
-            .into_iter()
-            .map(|asset_ref| asset_ref.index)
-            .collect::<std::collections::HashSet<_>>();
+        let plugin_assets = package::get_esp_file_assets(&graph.plugin);
 
+        // Add in referenced parent assets
+        let mut parent_assets = HashSet::new();
+        for asset in plugin_assets.clone() {
+            parent_assets.extend(asset.parents(true));
+        }
+
+        let master_file_assets = package::get_master_file_assets(&graph.plugin);
+
+        let combined_assets: HashSet<_> = plugin_assets.union(&parent_assets).cloned().collect();
         let mut assets_vec = Vec::new();
-        for asset in &assets {
-            if let Ok(mut asset) = Asset::try_from(asset.clone()) {
-                asset.export =
-                    graph.plugin.index == asset.index || !removed_assets.contains(&asset.index);
+        for asset_ref in &combined_assets {
+            if let Ok(mut asset) = Asset::try_from(asset_ref.clone()) {
+                asset.export = !master_file_assets.contains(asset_ref);
+                asset.is_master_asset =
+                    master_file_assets.contains(asset_ref) && !plugin_assets.contains(asset_ref);
                 assets_vec.push(asset);
             }
         }
@@ -187,6 +196,75 @@ pub unsafe extern "C" fn esp_tools_free_utf8(value: *mut u8, value_len_bytes: us
         unsafe {
             let value = std::ptr::slice_from_raw_parts_mut(value, value_len_bytes);
             drop(Box::from_raw(value));
+        }
+    }
+}
+
+/// Packages the ESP file graph into a ZIP archive.
+///
+/// Takes in `FileAssets` as a JSON byte buffer and returns a ZIP archive as a byte buffer
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn esp_tools_package_zip(
+    graph: *const EspFileGraph,
+    json_bytes: *const u8,
+    json_len_bytes: usize,
+    zip_path: *const u8,
+    zip_len_bytes: usize,
+) -> bool {
+    if json_bytes.is_null() || json_len_bytes == 0 {
+        error!("The JSON input pointers cannot be null");
+        return false;
+    }
+
+    if zip_path.is_null() || zip_len_bytes == 0 {
+        error!("The ZIP output pointers cannot be null");
+        return false;
+    }
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let graph = unsafe { graph.as_ref() }
+            .ok_or_else(|| "The ESP file graph cannot be null".to_owned())?;
+
+        let json = unsafe { std::slice::from_raw_parts(json_bytes, json_len_bytes) };
+
+        // Deserialize the JSON into FileAssets
+        let file_assets: FileAssets = match serde_json::from_slice(json) {
+            Ok(fa) => fa,
+            Err(err) => {
+                error!("Failed to deserialize FileAssets from JSON: {err}");
+                return Err("Failed to deserialize FileAssets from JSON".to_owned());
+            }
+        };
+
+        let output_path =
+            str::from_utf8(unsafe { std::slice::from_raw_parts(zip_path, zip_len_bytes) })
+                .map_err(|_| "Failed to convert ZIP path to UTF-8".to_owned())?;
+
+        package::zip_files(
+            &file_assets
+                .assets
+                .iter()
+                .filter(|asset| asset.export)
+                .map(|asset| PathBuf::from(&asset.name))
+                .collect::<Vec<PathBuf>>(),
+            &graph.plugin_path,
+            &std::path::PathBuf::from(output_path),
+        )
+        .map_err(|e| format!("Failed to package ZIP archive: {e}").to_owned())?;
+
+        Ok(())
+    }));
+
+    let result = match result {
+        Ok(inner) => inner,
+        Err(_) => Err("Panic occurred while packaging ZIP archive".to_owned()),
+    };
+
+    match result {
+        Ok(()) => true,
+        Err(err) => {
+            error!("Failed to package ZIP archive: {err}");
+            false
         }
     }
 }

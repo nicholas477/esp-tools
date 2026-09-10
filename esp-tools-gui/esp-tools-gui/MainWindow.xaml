@@ -7,11 +7,6 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
 
-    <Window.Resources>
-        <!-- Register your visibility converter so XAML can see it -->
-        <local:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
-    </Window.Resources>
-
     <DockPanel  Margin="10,10,10,10">
         <!-- Loading popup -->
         <Popup x:Name="LoadingPopup" 
@@ -26,50 +21,18 @@
                 <StackPanel Width="250">
                     <TextBlock Text="Loading data, please wait..." Margin="0,0,0,12" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                     <ProgressBar x:Name="MyProgressBar" Height="15" IsIndeterminate="True"/>
+                    <Button Content="Cancel" Width="80" Margin="0,12,0,0" HorizontalAlignment="Center" Click="CloseButton_Click"/>
                 </StackPanel>
             </Border>
         </Popup>
-        
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal">
-            <Button Content="Button 1" Width="100" Margin="5"/>
-            <Button Content="Button 2" Width="100" Margin="5"/>
-            <Button Content="Button 3" Width="100" Margin="5"/>
+
+        <!-- Buttons at the bottom -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Package Zip" Width="100" Margin="5" Click="PackageButton_Click"/>
+            <Button Content="Cancel" Width="100" Margin="5" Click="CloseButton_Click"/>
         </StackPanel>
-        <TabControl DockPanel.Dock="Top">
-            <TabItem Header="Reference Tree">
-                <TreeView ItemsSource="{Binding TreeRootNodes}">
-                    <!-- 1. Define the Visual Template for your Custom Class -->
-                    <TreeView.ItemTemplate>
-                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                            <StackPanel Orientation="Horizontal" Margin="2">
-                                <!-- Checkbox -->
-                                <CheckBox IsChecked="{Binding ShouldExport, Mode=TwoWay}" VerticalAlignment="Center"/>
 
-                                <!-- Main Title Text -->
-                                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14"/>
-
-                            </StackPanel>
-                        </HierarchicalDataTemplate>
-                    </TreeView.ItemTemplate>
-
-                    <!-- 2. Connect UI States (like Selection) back to your Custom Class -->
-                    <TreeView.ItemContainerStyle>
-                        <Style TargetType="TreeViewItem">
-                            <!-- TwoWay binding connects UI selection state to your C# IsSelected property -->
-                            <!--<Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />-->
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            
-                            <!-- Initialize to expanded by default -->
-                            <Setter Property="IsExpanded" Value="True" />
-                        </Style>
-                    </TreeView.ItemContainerStyle>
-
-                </TreeView>
-            </TabItem>
-            <TabItem Header="File View" >
-                <ListView/>
-
-            </TabItem>
-        </TabControl>
+        <!-- Reference/file viewer at the top -->
+        <local:ReferenceView DockPanel.Dock="Top"/>
     </DockPanel>
 </Window>
