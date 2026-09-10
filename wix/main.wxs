@@ -141,9 +141,9 @@
                         <Component Id='RustLibrary' Guid='*'>
                           <File
                             Id='RustLibraryFile'
-                            Name='esp_tools.dll'
+                            Name='esp_tools_lib.dll'
                             DiskId='1'
-                            Source='$(var.CargoTargetBinDir)\esp_tools.dll'
+                            Source='$(var.CargoTargetBinDir)\esp_tools_lib.dll'
                             KeyPath='yes'/>
                         </Component>
                         <Component Id='NewtonsoftJson' Guid='*'>

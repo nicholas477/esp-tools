@@ -7,7 +7,7 @@ namespace esp_tools_gui
     internal static class EspToolsNative
     {
         // This must name the Rust cdylib, not the CLI executable.
-        private const string LibraryName = "esp_tools.dll";
+        private const string LibraryName = "esp_tools_lib.dll";
 
         [DllImport(
              LibraryName,

@@ -7,7 +7,7 @@ license = "GPL-3.0"
 description = "Reads the statics from a ESP file and packages the ESP, meshes, and textures into a single zip."
 
 [lib]
-name = "esp_tools_llib"
+name = "esp_tools_lib"
 crate-type = [
     "cdylib",
     "rlib",

@@ -21,7 +21,7 @@ try {
     Get-ChildItem -Path $stagingDirectory -File | Remove-Item
 
     Copy-Item 'target\release\esp-tools.exe' $stagingDirectory
-    Copy-Item 'target\release\esp_tools.dll' $stagingDirectory
+    Copy-Item 'target\release\esp_tools_lib.dll' $stagingDirectory
     Copy-Item (Join-Path $guiOutputDirectory 'esp-tools-gui.exe') $stagingDirectory
     Copy-Item (Join-Path $guiOutputDirectory 'esp-tools-gui.exe.config') $stagingDirectory
     Copy-Item (Join-Path $guiOutputDirectory 'Newtonsoft.Json.dll') $stagingDirectory
