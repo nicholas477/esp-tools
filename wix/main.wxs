@@ -122,6 +122,38 @@
                                 Source='$(var.CargoTargetBinDir)\esp-tools.exe'
                                 KeyPath='yes'/>
                         </Component>
+                        <Component Id='GuiExecutable' Guid='*'>
+                          <File
+                            Id='GuiExe'
+                            Name='esp-tools-gui.exe'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\esp-tools-gui.exe'
+                            KeyPath='yes'/>
+                        </Component>
+                        <Component Id='GuiConfig' Guid='*'>
+                          <File
+                            Id='GuiConfigFile'
+                            Name='esp-tools-gui.exe.config'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\esp-tools-gui.exe.config'
+                            KeyPath='yes'/>
+                        </Component>
+                        <Component Id='RustLibrary' Guid='*'>
+                          <File
+                            Id='RustLibraryFile'
+                            Name='esp_tools.dll'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\esp_tools.dll'
+                            KeyPath='yes'/>
+                        </Component>
+                        <Component Id='NewtonsoftJson' Guid='*'>
+                          <File
+                            Id='NewtonsoftJsonFile'
+                            Name='Newtonsoft.Json.dll'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\Newtonsoft.Json.dll'
+                            KeyPath='yes'/>
+                        </Component>
                         <Component Id='ExplorerContextMenu' Guid='*'>
                           <RegistryValue
                             Root='HKCR'
@@ -144,7 +176,7 @@
                           <RegistryValue
                             Root='HKCR'
                             Key='SystemFileAssociations\.esp\shell\EspTools\shell\Package\command'
-                            Value='&quot;[Bin]esp-tools.exe&quot; --gui package &quot;%1&quot;'
+                            Value='&quot;[Bin]esp-tools-gui.exe&quot;&quot;%1&quot;'
                             Type='string'/>
                           <RegistryValue
                             Root='HKCR'
@@ -166,7 +198,7 @@
                           <RegistryValue
                             Root='HKCR'
                             Key='SystemFileAssociations\.esm\shell\EspTools\shell\Package\command'
-                            Value='&quot;[Bin]esp-tools.exe&quot; --gui package &quot;%1&quot;'
+                            Value='&quot;[Bin]esp-tools-gui.exe&quot;&quot;%1&quot;'
                             Type='string'/>
                         </Component>
                     </Directory>
@@ -190,6 +222,10 @@
             <ComponentRef Id='License'/>
             
             <ComponentRef Id='binary0'/>
+            <ComponentRef Id='GuiExecutable'/>
+            <ComponentRef Id='GuiConfig'/>
+            <ComponentRef Id='RustLibrary'/>
+            <ComponentRef Id='NewtonsoftJson'/>
 
             <Feature
               Id='ExplorerContextMenuFeature'

@@ -94,27 +94,20 @@ jobs:
             ./artifacts
 
   windows-msi:
-    name: Windows MSI
+    name: Windows installer
     needs: build
     runs-on: windows-latest
-    env:
-      TARGET: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Download Windows executable
-        uses: actions/download-artifact@v8
-        with:
-          name: esp-tools-windows-${{ github.sha }}
-          path: ./artifacts
-
       - name: Install cargo-wix
         run: cargo install cargo-wix --locked
 
-      - name: Build MSI
-        run: cargo wix --target $TARGET --target-bin-dir ./artifacts --no-build --nocapture
+      - name: Build Rust, GUI, and MSI
+        shell: pwsh
+        run: ./tools/build-installer.ps1
 
       - name: Archive MSI
         uses: actions/upload-artifact@v4
