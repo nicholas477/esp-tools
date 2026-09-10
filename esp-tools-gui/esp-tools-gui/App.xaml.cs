@@ -27,7 +27,7 @@ namespace esp_tools_gui
             {
                 OpenFileDialog openFileDialog = new OpenFileDialog
                 {
-                    Filter = "ESP Files (*.esp)|*.esp|All files (*.*)|*.*", // Format: "Description|*.extension"
+                    Filter = "ESP Files (*.esp, *.esm)|*.esp;*.esm|All files (*.*)|*.*", // Format: "Description|*.extension"
                     FilterIndex = 1,
                     Multiselect = false // Set to true to allow choosing multiple files
                 };

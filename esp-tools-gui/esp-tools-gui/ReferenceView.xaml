@@ -9,7 +9,7 @@
 
     <!-- Tree reference view -->
     <TabItem Header="Reference Tree">
-        <TreeView ItemsSource="{Binding TreeRootNodes}">
+        <TreeView ItemsSource="{Binding TreeRootNodes}" IsTextSearchEnabled="True" Background="White">
             <TreeView.ItemTemplate>
                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                     <StackPanel Orientation="Horizontal" Margin="2">

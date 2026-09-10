@@ -112,6 +112,7 @@ namespace esp_tools_gui
 
         private async void StartLoad()
         {
+            this.IsEnabled = false;
             LoadingPopup.IsOpen = true;
             try
             {
@@ -148,13 +149,13 @@ namespace esp_tools_gui
             finally
             {
                 LoadingPopup.IsOpen = false;
+                this.IsEnabled = true;
             }
         }
 
         private static (List<ReferenceTreeItem>, ReferenceTreeItem, FileAssets, EspFileGraph) LoadSampleData(String esp_path)
         {
             (string json, EspFileGraph newGraph) = EspTools.ScanToJson(esp_path);
-            //Console.WriteLine(json);
 
             FileAssets assets = JsonConvert.DeserializeObject<FileAssets>(json);
             Asset asset = assets.Assets.FirstOrDefault(a => a.Index == assets.RootIndex);
