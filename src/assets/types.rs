@@ -270,7 +270,6 @@ pub fn add_dependency(parent: &AssetRef, child: &AssetRef) {
         .is_none()
     {
         error!("Failed to add dependency: child asset has been dropped");
-        return;
     }
 }
 

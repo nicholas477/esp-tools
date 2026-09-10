@@ -1,6 +1,7 @@
 use log::info;
 use self_update::cargo_crate_version;
 
+#[allow(dead_code)]
 pub async fn update() -> Result<(), Box<dyn std::error::Error>> {
     let status = self_update::backends::github::Update::configure()
         .repo_owner("nicholas477")

@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use ::log::error;
 use clap::Parser;
 

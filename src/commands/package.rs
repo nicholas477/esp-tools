@@ -1,6 +1,5 @@
 use std::{
     collections::HashSet,
-    hash::Hash,
     path::{Path, PathBuf},
 };
 
@@ -82,6 +81,7 @@ pub fn get_master_file_assets(plugin: &assets::AssetRef) -> HashSet<assets::Asse
 }
 
 /// Removes master file assets from the provided set of assets and returns a new set containing only the master file assets that were removed.
+#[allow(dead_code)]
 pub fn remove_master_file_assets(
     plugin: &assets::AssetRef,
     assets: &mut HashSet<assets::AssetRef>,
@@ -116,16 +116,6 @@ pub fn remove_master_file_assets(
                 let master_file_parent = parents.intersection(&master_file_plugins).next();
                 if master_file_parent.is_some() {
                     master_file_assets.insert(asset.clone());
-
-                    info!(
-                        "Excluding asset {} because it has a master file {} asset as a parent",
-                        node.path.relative_path.display(),
-                        master_file_parent
-                            .unwrap()
-                            .map_read(|node| node.path.relative_path.clone())
-                            .unwrap()
-                            .display(),
-                    );
                     false
                 } else {
                     true
@@ -155,6 +145,7 @@ fn print_children(asset: &assets::AssetRef, depth: usize) {
     }
 }
 
+#[allow(dead_code)]
 pub async fn package_esp_file(
     args: &args::PackageCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {

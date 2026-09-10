@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use ::log::info;
 
 mod args;
@@ -7,7 +9,7 @@ mod log;
 mod update;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn esp_tools_init() {
+pub extern "C" fn esp_tools_init() {
     log::init_logger();
 
     info!("ESP tools initialized");
