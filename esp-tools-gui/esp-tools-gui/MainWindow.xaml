@@ -1,0 +1,38 @@
+﻿<Window x:Class="esp_tools_gui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:esp_tools_gui"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+
+    <DockPanel  Margin="10,10,10,10">
+        <!-- Loading popup -->
+        <Popup x:Name="LoadingPopup" 
+               Placement="Center" 
+               PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+               AllowsTransparency="True" 
+               IsOpen="False">
+            <Border Background="#F3F3F3" BorderBrush="#CCCCCC" BorderThickness="1" Padding="25">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="10" Color="Black" Opacity="0.2" ShadowDepth="2"/>
+                </Border.Effect>
+                <StackPanel Width="250">
+                    <TextBlock Text="Loading data, please wait..." Margin="0,0,0,12" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                    <ProgressBar x:Name="MyProgressBar" Height="15" IsIndeterminate="True"/>
+                    <Button Content="Cancel" Width="80" Margin="0,12,0,0" HorizontalAlignment="Center" Click="CloseButton_Click"/>
+                </StackPanel>
+            </Border>
+        </Popup>
+
+        <!-- Buttons at the bottom -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Package Zip" Width="100" Margin="5" Click="PackageButton_Click"/>
+            <Button Content="Cancel" Width="100" Margin="5" Click="CloseButton_Click"/>
+        </StackPanel>
+
+        <!-- Reference/file viewer at the top -->
+        <local:ReferenceView DockPanel.Dock="Top"/>
+    </DockPanel>
+</Window>

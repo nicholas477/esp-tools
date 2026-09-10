@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/update-readme-help.ps1
+git add README.md

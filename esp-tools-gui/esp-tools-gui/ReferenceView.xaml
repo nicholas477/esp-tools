@@ -1,0 +1,45 @@
+<TabControl x:Class="esp_tools_gui.ReferenceView"
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+            xmlns:local="clr-namespace:esp_tools_gui"
+            mc:Ignorable="d" 
+            d:DesignHeight="450" d:DesignWidth="800">
+
+    <!-- Tree reference view -->
+    <TabItem Header="Reference Tree">
+        <TreeView ItemsSource="{Binding TreeRootNodes}">
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                    <StackPanel Orientation="Horizontal" Margin="2">
+                        <CheckBox IsChecked="{Binding ShouldExport, Mode=TwoWay}" VerticalAlignment="Center" Visibility="{Binding GetCheckboxVisibility}"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                </Style>
+            </TreeView.ItemContainerStyle>
+        </TreeView>
+    </TabItem>
+
+    <!-- File list view -->
+    <TabItem Header="File View" >
+        <ListView ItemsSource="{Binding FileListNodes}">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Margin="2">
+                        <CheckBox IsChecked="{Binding ShouldExport, Mode=TwoWay}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </TabItem>
+
+</TabControl>

@@ -60,7 +60,7 @@
 
     <Product
         Id='*'
-        Name='esp-isolator'
+        Name='esp-tools'
         UpgradeCode='DC460C2E-9551-4D8F-BCCD-B17EB41EAE6D'
         Manufacturer='Nicholas Chalkley'
         Language='1033'
@@ -84,11 +84,11 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='esp-isolator Installation'/>
+        <Property Id='DiskPrompt' Value='esp-tools Installation'/>
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='esp-isolator'>
+                <Directory Id='APPLICATIONFOLDER' Name='esp-tools'>
                     <!--
                       Disabling the license sidecar file in the installer is a two step process:
 
@@ -117,32 +117,88 @@
                         <Component Id='binary0' Guid='*'>
                             <File
                                 Id='exe0'
-                                Name='esp-isolator.exe'
+                                Name='esp-tools.exe'
                                 DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\esp-isolator.exe'
+                                Source='$(var.CargoTargetBinDir)\esp-tools.exe'
                                 KeyPath='yes'/>
+                        </Component>
+                        <Component Id='GuiExecutable' Guid='*'>
+                          <File
+                            Id='GuiExe'
+                            Name='esp-tools-gui.exe'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\esp-tools-gui.exe'
+                            KeyPath='yes'/>
+                        </Component>
+                        <Component Id='GuiConfig' Guid='*'>
+                          <File
+                            Id='GuiConfigFile'
+                            Name='esp-tools-gui.exe.config'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\esp-tools-gui.exe.config'
+                            KeyPath='yes'/>
+                        </Component>
+                        <Component Id='RustLibrary' Guid='*'>
+                          <File
+                            Id='RustLibraryFile'
+                            Name='esp_tools.dll'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\esp_tools.dll'
+                            KeyPath='yes'/>
+                        </Component>
+                        <Component Id='NewtonsoftJson' Guid='*'>
+                          <File
+                            Id='NewtonsoftJsonFile'
+                            Name='Newtonsoft.Json.dll'
+                            DiskId='1'
+                            Source='$(var.CargoTargetBinDir)\Newtonsoft.Json.dll'
+                            KeyPath='yes'/>
                         </Component>
                         <Component Id='ExplorerContextMenu' Guid='*'>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esp\shell\EspIsolator'
-                            Value='Run esp-isolator'
+                            Key='SystemFileAssociations\.esp\shell\EspTools'
+                            Name='MUIVerb'
+                            Value='ESP Tools'
                             Type='string'
                             KeyPath='yes'/>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esp\shell\EspIsolator\command'
-                            Value='&quot;[Bin]esp-isolator.exe&quot; &quot;%1&quot;'
+                            Key='SystemFileAssociations\.esp\shell\EspTools'
+                            Name='SubCommands'
+                            Value=''
                             Type='string'/>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esm\shell\EspIsolator'
-                            Value='Run esp-isolator'
+                            Key='SystemFileAssociations\.esp\shell\EspTools\shell\Package'
+                            Value='Package'
                             Type='string'/>
                           <RegistryValue
                             Root='HKCR'
-                            Key='SystemFileAssociations\.esm\shell\EspIsolator\command'
-                            Value='&quot;[Bin]esp-isolator.exe&quot; &quot;%1&quot;'
+                            Key='SystemFileAssociations\.esp\shell\EspTools\shell\Package\command'
+                            Value='&quot;[Bin]esp-tools-gui.exe&quot;&quot;%1&quot;'
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools'
+                            Name='MUIVerb'
+                            Value='ESP Tools'
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools'
+                            Name='SubCommands'
+                            Value=''
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools\shell\Package'
+                            Value='Package'
+                            Type='string'/>
+                          <RegistryValue
+                            Root='HKCR'
+                            Key='SystemFileAssociations\.esm\shell\EspTools\shell\Package\command'
+                            Value='&quot;[Bin]esp-tools-gui.exe&quot;&quot;%1&quot;'
                             Type='string'/>
                         </Component>
                     </Directory>
@@ -166,11 +222,15 @@
             <ComponentRef Id='License'/>
             
             <ComponentRef Id='binary0'/>
+            <ComponentRef Id='GuiExecutable'/>
+            <ComponentRef Id='GuiConfig'/>
+            <ComponentRef Id='RustLibrary'/>
+            <ComponentRef Id='NewtonsoftJson'/>
 
             <Feature
               Id='ExplorerContextMenuFeature'
               Title='Explorer Context Menu'
-              Description='Add a Run esp-isolator command when right-clicking ESP and ESM files.'
+              Description='Add esp-tools commands when right-clicking ESP and ESM files.'
               Level='1'
               Absent='allow'>
               <ComponentRef Id='ExplorerContextMenu'/>
