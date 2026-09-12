@@ -3,11 +3,11 @@
 use ::log::error;
 use clap::Parser;
 
-mod args;
-mod assets;
-mod commands;
-mod log;
-mod update;
+pub mod args;
+pub mod assets;
+pub mod commands;
+pub mod log;
+pub mod update;
 
 #[cfg(target_os = "windows")]
 mod windows;

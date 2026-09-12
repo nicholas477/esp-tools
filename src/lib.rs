@@ -2,11 +2,11 @@
 
 use ::log::info;
 
-mod args;
-mod assets;
-mod commands;
-mod log;
-mod update;
+pub mod args;
+pub mod assets;
+pub mod commands;
+pub mod log;
+pub mod update;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn esp_tools_init() {

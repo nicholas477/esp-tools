@@ -31,3 +31,10 @@ embed-manifest = "1.5.0"
 
 [target.'cfg(target_os = "windows")']
 dependencies = { native-windows-gui = "1.0.13", native-windows-derive = "1.0.3", hide_console_ng = "0.1.0" }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+
+[[bench]]
+name = "reference_bench"
+harness = false
